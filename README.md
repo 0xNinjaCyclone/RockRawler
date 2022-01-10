@@ -100,7 +100,7 @@ void printResults(char **results) { /* Print RockRawler results */
 
 void main(void) {
     char **results; 
-    /* Start RockRawler and pass (URL, Threads, Depth, Headers) */
+    /* Start RockRawler and pass (URL, Threads, Depth, subsInScope, insecure, Headers) */
     results = CStartCrawler(BuildGoStr("https://www.example.com"), 5, 2, 0, 0, BuildGoStr("Cookie: foo=bar;;Referer: http://example.com/"));
     printResults(results); /* print results */
     free(results); /* We must free memory allocation when finished */
