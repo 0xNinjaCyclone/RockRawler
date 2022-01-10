@@ -69,6 +69,13 @@ echo google.com | haktrails subdomains | httpx | RockRawler
 ## C Usage
 First you must build RockRawler via this command `go build -buildmode=c-archive RockRawler.go`\
 Then you will get two files that you use in your project named `RockRawler.a` and `RockRawler.h`\
+
+### RockRawler API
+```
+extern char** CStartCrawler(GoString url, GoInt threads, GoInt depth, GoUint8 subsInScope, GoUint8 insecure, GoString rawHeaders);
+```
+
+### Simple example
 This is an example of usage RockRawler from C
 
 ```
@@ -94,9 +101,9 @@ void printResults(char **results) { /* Print RockRawler results */
 void main(void) {
     char **results; 
     /* Start RockRawler and pass (URL, Threads, Depth, Headers) */
-    results = CStartCrawler(BuildGoStr("https://www.example.com"),5,2,BuildGoStr("")); 
+    results = CStartCrawler(BuildGoStr("https://www.example.com"), 5, 2, 0, 0, BuildGoStr("Cookie: foo=bar;;Referer: http://example.com/"));
     printResults(results); /* print results */
-    free(results); /* We must free memory allocation when finish */
+    free(results); /* We must free memory allocation when finished */
 }
 ```
 

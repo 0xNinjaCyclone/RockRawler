@@ -189,10 +189,10 @@ func isUnique(url string) bool {
 }
 
 //export CStartCrawler
-func CStartCrawler(url string, threads int, depth int, rawHeaders string) **C.char {
+func CStartCrawler(url string, threads int, depth int, subsInScope bool, insecure bool, rawHeaders string) **C.char {
 
 	// Pass the supplied parameters from C to the crawler
-	results := StartCrawler(url, threads, depth, false, false, rawHeaders)
+	results := StartCrawler(url, threads, depth, subsInScope, insecure, rawHeaders)
 
 	// Get size of results to allocate memory for c results
 	size := len(results) + 1 // add one to put a nul terminator at the end of C strings array
