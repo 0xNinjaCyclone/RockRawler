@@ -4,7 +4,7 @@ A modified version of hakrawler, it's fast web crawler .
 
 ## Why
 i developed it to improve hakrawler and make it better, and make it extendable to C language\
-You can now embed RockRawler with existing C projects and therefore you can use RockRawler with more language like python and ruby if developed your own extension using C API of that languages.
+You can now embed RockRawler with existing C projects and therefore you can use RockRawler with more languages like python and ruby if developed your own extension using C API of that languages.
 
 ## Notes
 - Extendable to C language (Take a look at usage below)
