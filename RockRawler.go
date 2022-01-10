@@ -27,98 +27,94 @@ import (
 // Thread safe map
 var sm sync.Map
 
-func StartCrawler(url string, threads int, depth int, subsInScope bool, insecure bool, rawHeaders string) chan string {
+func StartCrawler(url string, threads int, depth int, subsInScope bool, insecure bool, rawHeaders string) []string {
 
 	// Convert the headers input to a usable map (or die trying)
 	headers, _ := parseHeaders(rawHeaders)
 
 	// A container where the results are stored
-	results := make(chan string, threads)
+	results := make([]string, 0)
 
-	go func() {
+	// if a url does not start with scheme (It fix hakrawler bug)
+	if !strings.HasPrefix(url, "http") {
+		url = "http://" + url
+	}
 
-		// if a url does not start with scheme (It fix hakrawler bug)
-		if !strings.HasPrefix(url, "http") {
-			url = "http://" + url
-		}
+	// Get hostname from url
+	hostname, err := extractHostname(url)
 
-		// Get hostname from url
-		hostname, err := extractHostname(url)
+	if err != nil {
+		// return empty slice
+		return results
+	}
 
-		if err != nil {
-			return
-		}
+	// Instantiate default collector
+	c := colly.NewCollector(
 
-		// Instantiate default collector
-		c := colly.NewCollector(
+		// default user agent header
+		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0"),
 
-			// default user agent header
-			colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0"),
+		// limit crawling to the domain of the specified URL
+		colly.AllowedDomains(hostname),
 
-			// limit crawling to the domain of the specified URL
-			colly.AllowedDomains(hostname),
+		// set MaxDepth to the specified depth
+		colly.MaxDepth(depth),
 
-			// set MaxDepth to the specified depth
-			colly.MaxDepth(depth),
+		// specify Async for threading
+		colly.Async(true),
+	)
 
-			// specify Async for threading
-			colly.Async(true),
-		)
+	// if -subs is present, use regex to filter out subdomains in scope.
+	if subsInScope {
+		c.AllowedDomains = nil
+		c.URLFilters = []*regexp.Regexp{regexp.MustCompile(".*(\\.|\\/\\/)" + strings.ReplaceAll(hostname, ".", "\\.") + "((#|\\/|\\?).*)?")}
+	}
 
-		// if -subs is present, use regex to filter out subdomains in scope.
-		if subsInScope {
-			c.AllowedDomains = nil
-			c.URLFilters = []*regexp.Regexp{regexp.MustCompile(".*(\\.|\\/\\/)" + strings.ReplaceAll(hostname, ".", "\\.") + "((#|\\/|\\?).*)?")}
-		}
+	// Set parallelism
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: threads})
 
-		// Set parallelism
-		c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: threads})
+	// append every href found, and visit it
+	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+		link := e.Attr("href")
+		appendResult(link, &results, e)
+		e.Request.Visit(link)
+	})
 
-		// append every href found, and visit it
-		c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-			link := e.Attr("href")
-			appendResult(link, results, e)
-			e.Request.Visit(link)
+	// find all JavaScript files
+	c.OnHTML("script[src]", func(e *colly.HTMLElement) {
+		appendResult(e.Attr("src"), &results, e)
+	})
+
+	// find all the form action URLs
+	c.OnHTML("form[action]", func(e *colly.HTMLElement) {
+		appendResult(e.Attr("action"), &results, e)
+	})
+
+	// add the custom headers
+	if headers != nil {
+		c.OnRequest(func(r *colly.Request) {
+			for header, value := range headers {
+				r.Headers.Set(header, value)
+			}
 		})
+	}
 
-		// find all JavaScript files
-		c.OnHTML("script[src]", func(e *colly.HTMLElement) {
-			appendResult(e.Attr("src"), results, e)
-		})
+	// Skip TLS verification if -insecure flag is present
+	c.WithTransport(&http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+	})
 
-		// find all the form action URLs
-		c.OnHTML("form[action]", func(e *colly.HTMLElement) {
-			appendResult(e.Attr("action"), results, e)
-		})
+	// Start scraping
+	c.Visit(url)
 
-		// add the custom headers
-		if headers != nil {
-			c.OnRequest(func(r *colly.Request) {
-				for header, value := range headers {
-					r.Headers.Set(header, value)
-				}
-			})
-		}
-
-		// Skip TLS verification if -insecure flag is present
-		c.WithTransport(&http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
-		})
-
-		// Start scraping
-		c.Visit(url)
-
-		// Wait until threads are finished
-		c.Wait()
-
-		close(results)
-	}()
+	// Wait until threads are finished
+	c.Wait()
 
 	return results
 }
 
-func printResults(results chan string) {
-	for res := range results {
+func printResults(results []string) {
+	for _, res := range results {
 		fmt.Printf("%s\n", res)
 	}
 }
@@ -170,13 +166,13 @@ func extractHostname(urlString string) (string, error) {
 }
 
 // append valid unique result to results
-func appendResult(link string, results chan string, e *colly.HTMLElement) {
+func appendResult(link string, results *[]string, e *colly.HTMLElement) {
 	result := e.Request.AbsoluteURL(link)
 
 	if result != "" {
 		// Append only unique links
 		if isUnique(result) {
-			results <- result
+			*results = append(*results, result)
 		}
 	}
 }
@@ -198,14 +194,8 @@ func CStartCrawler(url string, threads int, depth int, rawHeaders string) **C.ch
 	// Pass the supplied parameters from C to the crawler
 	results := StartCrawler(url, threads, depth, false, false, rawHeaders)
 
-	// Convert the result channel to an array of strings to calculate the size and convert to C type.
-	arrLinks := make([]string, 0)
-
-	for link := range results {
-		arrLinks = append(arrLinks, link)
-	}
-
-	size := len(arrLinks) + 1 // add one to put a nul terminator at the end of C strings array
+	// Get size of results to allocate memory for c results
+	size := len(results) + 1 // add one to put a nul terminator at the end of C strings array
 
 	// Allocate memory space for C array
 	cArray := C.malloc(C.size_t(size) * C.size_t(unsafe.Sizeof(uintptr(0))))
@@ -213,7 +203,7 @@ func CStartCrawler(url string, threads int, depth int, rawHeaders string) **C.ch
 	// convert the C array to a Go Array so we can index it
 	a := (*[1<<30 - 1]*C.char)(cArray)
 
-	for idx, link := range arrLinks {
+	for idx, link := range results {
 		a[idx] = C.CString(link)
 	}
 
