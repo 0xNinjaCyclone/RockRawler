@@ -201,7 +201,7 @@ func CStartCrawler(url string, threads int, depth int, subsInScope bool, insecur
 	cArray := C.malloc(C.size_t(size) * C.size_t(unsafe.Sizeof(uintptr(0))))
 
 	// convert the C array to a Go Array so we can index it
-	a := (*[1<<30 - 1]*C.char)(cArray)
+	a := (*[1 << 28]*C.char)(unsafe.Pointer(cArray))[:size:size]
 
 	for idx, link := range results {
 		a[idx] = C.CString(link)
