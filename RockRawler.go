@@ -203,6 +203,9 @@ func CStartCrawler(url string, threads int, depth int, subsInScope bool, insecur
 		a[idx] = C.CString(link)
 	}
 
+	// put a nul-terminator in the end of array
+	a[size-1] = nil
+
 	// return **char type to C
 	return (**C.char)(cArray)
 }
