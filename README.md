@@ -68,7 +68,7 @@ echo google.com | haktrails subdomains | httpx | RockRawler
 
 ## C Usage
 First you must build RockRawler via this command `go build -buildmode=c-archive RockRawler.go`\
-Then you will get two files that you use in your project named `RockRawler.a` and `RockRawler.h`\
+Then you will get two files that you use in your project named `RockRawler.a` and `RockRawler.h`
 
 ### RockRawler API
 ```
