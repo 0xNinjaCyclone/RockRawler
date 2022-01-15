@@ -18,14 +18,10 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"unsafe"
 
 	"github.com/gocolly/colly"
 )
-
-// Thread safe map
-var sm sync.Map
 
 func StartCrawler(url string, threads int, depth int, subsInScope bool, insecure bool, rawHeaders string) []string {
 
@@ -171,20 +167,20 @@ func appendResult(link string, results *[]string, e *colly.HTMLElement) {
 
 	if result != "" {
 		// Append only unique links
-		if isUnique(result) {
+		if isUnique(results, result) {
 			*results = append(*results, result)
 		}
 	}
 }
 
 // returns whether the supplied url is unique or not
-func isUnique(url string) bool {
-	_, present := sm.Load(url)
-	if present {
-		return false
+func isUnique(data *[]string, url string) bool {
+	for _, item := range *data {
+		if item == url {
+			return false
+		}
 	}
 
-	sm.Store(url, true)
 	return true
 }
 
